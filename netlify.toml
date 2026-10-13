@@ -1,0 +1,50 @@
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+# API Endpoints Routing to Netlify Serverless Function
+[[redirects]]
+  from = "/api/gainers"
+  to = "/.netlify/functions/api?route=gainers"
+  status = 200
+
+[[redirects]]
+  from = "/api/most-active"
+  to = "/.netlify/functions/api?route=most-active"
+  status = 200
+
+[[redirects]]
+  from = "/api/market"
+  to = "/.netlify/functions/api?route=market"
+  status = 200
+
+[[redirects]]
+  from = "/api/chart/:symbol"
+  to = "/.netlify/functions/api?route=chart&symbol=:symbol"
+  status = 200
+
+[[redirects]]
+  from = "/api/detail/:symbol"
+  to = "/.netlify/functions/api?route=detail&symbol=:symbol"
+  status = 200
+
+[[redirects]]
+  from = "/api/alerts"
+  to = "/.netlify/functions/api?route=alerts"
+  status = 200
+
+[[redirects]]
+  from = "/api/alerts/clear"
+  to = "/.netlify/functions/api?route=clear-alerts"
+  status = 200
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api"
+  status = 200
+
+# SPA Fallback rule - prevents 404 "Page Not Found"
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

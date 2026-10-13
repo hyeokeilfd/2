@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ko" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>미국 주식 급등주 추적 레이더 (US Surge Radar)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkBg: '#090d16',
+                        cardBg: '#111827',
+                        cardBorder: '#1f2937',
+                        upGreen: '#10b981',
+                        downRed: '#ef4444',
+                        accentBlue: '#3b82f6',
+                        neonPurple: '#8b5cf6'
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- TradingView Lightweight Charts -->
+    <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-darkBg text-slate-100 min-h-screen font-sans antialiased selection:bg-emerald-500 selection:text-white">
+
+    <!-- Top Navigation Bar -->
+    <header class="sticky top-0 z-40 bg-gray-900/90 backdrop-blur-md border-b border-gray-800 px-4 lg:px-8 py-3">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+            
+            <!-- Logo & Title -->
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                    <i class="fa-solid fa-arrow-trend-up text-white text-lg"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="text-lg font-bold text-white tracking-wide">US SURGE RADAR</h1>
+                        <span class="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">MVP Live</span>
+                    </div>
+                    <p class="text-xs text-gray-400">미국 주식 실시간 급등주 & 거래량 폭증 추적기</p>
+                </div>
+            </div>
+
+            <!-- Market Indices Ticker Pills -->
+            <div id="market-indices" class="flex items-center gap-2 overflow-x-auto py-1 text-xs">
+                <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-800/80 border border-gray-700/60 animate-pulse text-gray-400">
+                    <i class="fa-solid fa-spinner fa-spin text-xs"></i> 시장 지수 로딩 중...
+                </div>
+            </div>
+
+            <!-- Action Controls -->
+            <div class="flex items-center gap-3 text-xs">
+                <!-- Clock -->
+                <div class="hidden xl:flex flex-col text-right text-gray-400">
+                    <span id="kst-time" class="font-mono text-[11px] text-gray-300">KST --:--:--</span>
+                    <span id="est-time" class="font-mono text-[10px] text-gray-500">EST --:--:--</span>
+                </div>
+
+                <!-- Sound Alert Toggle -->
+                <button id="sound-btn" onclick="toggleSound()" class="px-3 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 flex items-center gap-1.5 transition">
+                    <i id="sound-icon" class="fa-solid fa-volume-high text-emerald-400"></i>
+                    <span id="sound-text">알림음 ON</span>
+                </button>
+
+                <!-- Auto Refresh Status & Refresh Button -->
+                <div class="flex items-center bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+                    <button id="refresh-btn" onclick="fetchData(true)" title="지금 바로 새로고침" class="px-3 py-2 hover:bg-gray-700 text-gray-300 flex items-center gap-1.5 transition">
+                        <i id="refresh-icon" class="fa-solid fa-rotate-right text-sky-400"></i>
+                        <span id="countdown-text">20s</span>
+                    </button>
+                    <button id="pause-btn" onclick="togglePause()" title="자동 새로고침 일시정지/재개" class="px-2 py-2 border-l border-gray-700 hover:bg-gray-700 text-gray-400 transition">
+                        <i id="pause-icon" class="fa-solid fa-pause"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-7xl mx-auto px-4 lg:px-8 py-6 space-y-6">
+
+        <!-- Real-time Surge Alert Ticker Banner -->
+        <div id="surge-alert-banner" class="hidden items-center justify-between p-3 rounded-xl bg-gradient-to-r from-emerald-950/60 via-gray-900 to-gray-900 border border-emerald-500/40 shadow-lg shadow-emerald-950/30">
+            <div class="flex items-center gap-3 overflow-hidden">
+                <span class="flex h-3 w-3 relative flex-shrink-0">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                </span>
+                <span class="font-bold text-xs uppercase text-emerald-400 tracking-wider flex-shrink-0">실시간 포착</span>
+                <p id="alert-banner-message" class="text-xs text-gray-200 truncate cursor-pointer hover:underline"></p>
+            </div>
+            <button onclick="dismissAlertBanner()" class="text-gray-400 hover:text-gray-200 text-xs px-2 py-1">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <!-- Metric Summary Cards -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Card 1: Top Gainer -->
+            <div class="bg-cardBg p-4 rounded-xl border border-cardBorder shadow-sm relative overflow-hidden group hover:border-emerald-500/40 transition">
+                <div class="flex justify-between items-start mb-2">
+                    <span class="text-xs text-gray-400 font-medium">🚀 1등 급등주</span>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-semibold">MAX GAIN</span>
+                </div>
+                <div class="flex items-baseline justify-between">
+                    <div>
+                        <h2 id="top-gainer-sym" class="text-xl font-extrabold text-white">--</h2>
+                        <p id="top-gainer-name" class="text-xs text-gray-400 truncate max-w-[120px]">대기 중</p>
+                    </div>
+                    <div class="text-right">
+                        <span id="top-gainer-pct" class="text-lg font-bold text-upGreen">+0.00%</span>
+                        <p id="top-gainer-price" class="text-xs text-gray-400">$0.00</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 2: Volume Surge Leader -->
+            <div class="bg-cardBg p-4 rounded-xl border border-cardBorder shadow-sm relative overflow-hidden group hover:border-sky-500/40 transition">
+                <div class="flex justify-between items-start mb-2">
+                    <span class="text-xs text-gray-400 font-medium">💥 거래량 폭증 1위</span>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-400 font-semibold">VOL SURGE</span>
+                </div>
+                <div class="flex items-baseline justify-between">
+                    <div>
+                        <h2 id="top-vol-sym" class="text-xl font-extrabold text-white">--</h2>
+                        <p id="top-vol-name" class="text-xs text-gray-400 truncate max-w-[120px]">대기 중</p>
+                    </div>
+                    <div class="text-right">
+                        <span id="top-vol-ratio" class="text-lg font-bold text-sky-400">0.0x</span>
+                        <p id="top-vol-amount" class="text-xs text-gray-400">0주</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 3: Detected Gainers Count -->
+            <div class="bg-cardBg p-4 rounded-xl border border-cardBorder shadow-sm relative overflow-hidden group hover:border-purple-500/40 transition">
+                <div class="flex justify-between items-start mb-2">
+                    <span class="text-xs text-gray-400 font-medium">📊 추적 중인 급등 종목</span>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 font-semibold">LIVE</span>
+                </div>
+                <div class="flex items-baseline justify-between">
+                    <div>
+                        <h2 id="total-stocks-count" class="text-xl font-extrabold text-white">0</h2>
+                        <p class="text-xs text-gray-400">포착 완료 종목</p>
+                    </div>
+                    <div class="text-right text-gray-400">
+                        <i class="fa-solid fa-chart-line text-2xl text-purple-400/50"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 4: Average Change -->
+            <div class="bg-cardBg p-4 rounded-xl border border-cardBorder shadow-sm relative overflow-hidden group hover:border-amber-500/40 transition">
+                <div class="flex justify-between items-start mb-2">
+                    <span class="text-xs text-gray-400 font-medium">⚡ 평균 급등률</span>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 font-semibold">AVG</span>
+                </div>
+                <div class="flex items-baseline justify-between">
+                    <div>
+                        <h2 id="avg-change-pct" class="text-xl font-extrabold text-amber-400">+0.00%</h2>
+                        <p class="text-xs text-gray-400">상위 종목 평균</p>
+                    </div>
+                    <div class="text-right text-gray-400">
+                        <i class="fa-solid fa-bolt text-2xl text-amber-400/50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls: Tabs, Filters, and Search -->
+        <div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 bg-gray-900/60 p-3 rounded-2xl border border-gray-800">
+            
+            <!-- Category Tabs -->
+            <div class="flex items-center gap-1.5 bg-gray-950/60 p-1 rounded-xl border border-gray-800 text-xs">
+                <button id="tab-gainers" onclick="switchTab('gainers')" class="tab-btn px-4 py-2 rounded-lg font-semibold bg-emerald-600 text-white shadow transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-fire text-amber-300"></i> 실시간 급등주
+                </button>
+                <button id="tab-mostactive" onclick="switchTab('mostactive')" class="tab-btn px-4 py-2 rounded-lg font-semibold text-gray-400 hover:text-white transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-chart-simple text-sky-400"></i> 거래량 폭증
+                </button>
+                <button id="tab-alerts" onclick="switchTab('alerts')" class="tab-btn px-4 py-2 rounded-lg font-semibold text-gray-400 hover:text-white transition flex items-center gap-1.5 relative">
+                    <i class="fa-solid fa-bell text-yellow-400"></i> 감지 로그
+                    <span id="alerts-badge" class="hidden ml-1 px-1.5 py-0.2 text-[10px] bg-red-500 text-white font-bold rounded-full">0</span>
+                </button>
+                <button id="tab-watchlist" onclick="switchTab('watchlist')" class="tab-btn px-4 py-2 rounded-lg font-semibold text-gray-400 hover:text-white transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-star text-amber-400"></i> 관심종목
+                </button>
+            </div>
+
+            <!-- Filters & Search -->
+            <div class="flex flex-wrap items-center gap-2 text-xs">
+                <!-- Search Input -->
+                <div class="relative flex-1 sm:w-48">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"></i>
+                    <input id="search-input" oninput="applyFilters()" type="text" placeholder="티커 / 종목명 검색..." class="w-full pl-9 pr-3 py-2 bg-gray-950 border border-gray-800 rounded-xl text-gray-200 placeholder-gray-500 focus:outline-none focus:border-emerald-500 transition">
+                </div>
+
+                <!-- Min Change Filter -->
+                <select id="filter-min-change" onchange="applyFilters()" class="bg-gray-950 border border-gray-800 text-gray-300 py-2 px-3 rounded-xl focus:outline-none focus:border-emerald-500">
+                    <option value="0">상승률 전체</option>
+                    <option value="3">+3% 이상</option>
+                    <option value="5" selected>+5% 이상 (급등)</option>
+                    <option value="10">+10% 이상 (초급등)</option>
+                    <option value="20">+20% 이상 (상한가급)</option>
+                </select>
+
+                <!-- Min Volume Filter -->
+                <select id="filter-min-volume" onchange="applyFilters()" class="bg-gray-950 border border-gray-800 text-gray-300 py-2 px-3 rounded-xl focus:outline-none focus:border-emerald-500">
+                    <option value="0">거래량 전체</option>
+                    <option value="100000">10만 주 이상</option>
+                    <option value="500000">50만 주 이상</option>
+                    <option value="1000000">100만 주 이상</option>
+                </select>
+
+                <!-- Sort Order -->
+                <select id="sort-by" onchange="applyFilters()" class="bg-gray-950 border border-gray-800 text-gray-300 py-2 px-3 rounded-xl focus:outline-none focus:border-emerald-500">
+                    <option value="pct_desc">상승률 높은순</option>
+                    <option value="vol_ratio_desc">거래량 배수 높은순</option>
+                    <option value="vol_desc">거래량 많은순</option>
+                    <option value="price_desc">주가 높은순</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Main Stock List Table View -->
+        <div id="stock-table-card" class="bg-cardBg rounded-2xl border border-cardBorder shadow-xl overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead>
+                        <tr class="bg-gray-950/80 text-gray-400 uppercase tracking-wider border-b border-gray-800 text-[11px]">
+                            <th class="py-3 px-4 w-12 text-center">관심</th>
+                            <th class="py-3 px-4">종목 코드 / 회사명</th>
+                            <th class="py-3 px-4 text-right">현재가 ($)</th>
+                            <th class="py-3 px-4 text-right">등락률 (%)</th>
+                            <th class="py-3 px-4 text-right">거래량 (주)</th>
+                            <th class="py-3 px-4 text-center">거래량 배수 (평소대비)</th>
+                            <th class="py-3 px-4 text-right">52주 최고가 대비</th>
+                            <th class="py-3 px-4 text-right">시가총액</th>
+                            <th class="py-3 px-4 text-center w-28">차트 분석</th>
+                        </tr>
+                    </thead>
+                    <tbody id="stock-list-tbody" class="divide-y divide-gray-800/60">
+                        <!-- Dynamic Stock Rows Inserted Here -->
+                        <tr>
+                            <td colspan="9" class="py-12 text-center text-gray-500">
+                                <i class="fa-solid fa-spinner fa-spin text-2xl text-emerald-400 mb-2"></i>
+                                <p>미국 실시간 주식 데이터를 불러오는 중입니다...</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Table Footer -->
+            <div class="py-3 px-4 bg-gray-950/60 border-t border-gray-800 flex items-center justify-between text-xs text-gray-400">
+                <span id="table-status-count">조회 결과: 0 종목</span>
+                <span class="flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    데이터 제공: Yahoo Finance Screener (비공식 실시간 데이터)
+                </span>
+            </div>
+        </div>
+
+        <!-- Alert Log View (Hidden by default, shown when Alerts tab active) -->
+        <div id="alerts-view" class="hidden bg-cardBg rounded-2xl border border-cardBorder p-4 shadow-xl">
+            <div class="flex items-center justify-between mb-4 border-b border-gray-800 pb-3">
+                <div>
+                    <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-bell text-yellow-400"></i> 실시간 급등 감지 기록 (Surge Detection Log)
+                    </h3>
+                    <p class="text-xs text-gray-400">상승률 5% 이상 및 거래량 폭증이 감지되었을 때 자동 기록된 내역입니다.</p>
+                </div>
+                <button onclick="clearAlerts()" class="text-xs px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 transition">
+                    <i class="fa-solid fa-trash-can mr-1"></i> 로그 지우기
+                </button>
+            </div>
+            <div id="alerts-list-container" class="space-y-2 max-h-[500px] overflow-y-auto pr-2">
+                <!-- Alert items -->
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Interactive Stock Detail & Candlestick Chart Modal -->
+    <div id="chart-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-3 sm:p-6">
+        <div class="bg-gray-900 border border-gray-800 w-full max-w-5xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] animate-in fade-in duration-200">
+            
+            <!-- Modal Header -->
+            <div class="p-4 sm:p-5 border-b border-gray-800 flex items-center justify-between bg-gray-950/70">
+                <div class="flex items-center gap-3">
+                    <div id="modal-sym-badge" class="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 font-extrabold text-sm border border-emerald-500/30">
+                        AAPL
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h2 id="modal-stock-name" class="text-base font-bold text-white">Apple Inc.</h2>
+                            <span id="modal-exchange" class="text-[10px] text-gray-400 bg-gray-800 px-1.5 py-0.5 rounded">NASDAQ</span>
+                        </div>
+                        <div class="flex items-baseline gap-2 mt-0.5">
+                            <span id="modal-stock-price" class="text-lg font-bold text-white">$0.00</span>
+                            <span id="modal-stock-pct" class="text-xs font-semibold text-upGreen">+0.00%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <!-- External Link to Yahoo Finance -->
+                    <a id="modal-external-link" href="#" target="_blank" class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs rounded-lg border border-gray-700 transition flex items-center gap-1">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i> Yahoo Finance
+                    </a>
+                    <!-- Close button -->
+                    <button onclick="closeChartModal()" class="w-8 h-8 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white flex items-center justify-center transition">
+                        <i class="fa-solid fa-xmark text-sm"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-4 sm:p-6 overflow-y-auto space-y-4">
+
+                <!-- Timeframe Selectors -->
+                <div class="flex items-center justify-between flex-wrap gap-2">
+                    <div class="flex items-center gap-1 bg-gray-950 p-1 rounded-lg border border-gray-800 text-xs">
+                        <button onclick="changeTimeframe('1d')" id="tf-1d" class="tf-btn px-3 py-1 rounded font-semibold bg-emerald-600 text-white">1일 (5분봉)</button>
+                        <button onclick="changeTimeframe('5d')" id="tf-5d" class="tf-btn px-3 py-1 rounded text-gray-400 hover:text-white">5일 (15분봉)</button>
+                        <button onclick="changeTimeframe('1mo')" id="tf-1mo" class="tf-btn px-3 py-1 rounded text-gray-400 hover:text-white">1개월 (일봉)</button>
+                        <button onclick="changeTimeframe('6mo')" id="tf-6mo" class="tf-btn px-3 py-1 rounded text-gray-400 hover:text-white">6개월 (일봉)</button>
+                    </div>
+
+                    <div id="chart-info-legend" class="text-xs text-gray-400">
+                        <!-- Realtime cursor values shown here -->
+                    </div>
+                </div>
+
+                <!-- Candlestick Chart Canvas Container -->
+                <div class="relative w-full h-[360px] bg-gray-950/80 rounded-xl border border-gray-800 overflow-hidden">
+                    <div id="tv-chart-container" class="w-full h-full"></div>
+                    <div id="chart-loading" class="absolute inset-0 bg-gray-950/80 flex items-center justify-center text-xs text-gray-400">
+                        <i class="fa-solid fa-spinner fa-spin text-emerald-400 text-lg mr-2"></i> 차트 캔들 데이터 로딩 중...
+                    </div>
+                </div>
+
+                <!-- Key Metrics Grid -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                    <div class="bg-gray-950/60 p-3 rounded-xl border border-gray-800">
+                        <span class="text-gray-500 block mb-1">당일 고가 / 저가</span>
+                        <span id="detail-day-range" class="font-semibold text-white">$0.00 ~ $0.00</span>
+                    </div>
+                    <div class="bg-gray-950/60 p-3 rounded-xl border border-gray-800">
+                        <span class="text-gray-500 block mb-1">52주 최고가 / 최저가</span>
+                        <span id="detail-52w-range" class="font-semibold text-white">$0.00 ~ $0.00</span>
+                    </div>
+                    <div class="bg-gray-950/60 p-3 rounded-xl border border-gray-800">
+                        <span class="text-gray-500 block mb-1">거래량 (누적)</span>
+                        <span id="detail-volume" class="font-semibold text-white">-</span>
+                    </div>
+                    <div class="bg-gray-950/60 p-3 rounded-xl border border-gray-800">
+                        <span class="text-gray-500 block mb-1">시가총액</span>
+                        <span id="detail-marketcap" class="font-semibold text-white">-</span>
+                    </div>
+                </div>
+
+                <!-- Sector & Description -->
+                <div id="detail-company-box" class="bg-gray-950/60 p-3.5 rounded-xl border border-gray-800 text-xs space-y-1.5">
+                    <div class="flex items-center gap-2">
+                        <span class="text-gray-500">섹터 / 산업군:</span>
+                        <span id="detail-sector" class="text-gray-200 font-medium">Technology / Software</span>
+                    </div>
+                    <p id="detail-summary" class="text-gray-400 leading-relaxed text-[11px] line-clamp-3">
+                        기업 개요 정보 로딩 중...
+                    </p>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Logic -->
+    <script src="js/app.js"></script>
+</body>
+</html>

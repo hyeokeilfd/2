@@ -1,0 +1,17 @@
+{
+  "name": "us-surge-stock-radar",
+  "version": "1.0.0",
+  "description": "US Momentum Stock Radar Web App",
+  "scripts": {
+    "start": "python -m uvicorn app.main:app --reload"
+  },
+  "keywords": [
+    "stock-tracker",
+    "momentum",
+    "day-gainers",
+    "fastapi",
+    "netlify"
+  ],
+  "author": "",
+  "license": "MIT"
+}

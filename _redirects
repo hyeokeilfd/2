@@ -1,0 +1,9 @@
+/api/gainers  /.netlify/functions/api?route=gainers  200
+/api/most-active  /.netlify/functions/api?route=most-active  200
+/api/market  /.netlify/functions/api?route=market  200
+/api/chart/:symbol  /.netlify/functions/api?route=chart&symbol=:symbol  200
+/api/detail/:symbol  /.netlify/functions/api?route=detail&symbol=:symbol  200
+/api/alerts  /.netlify/functions/api?route=alerts  200
+/api/alerts/clear  /.netlify/functions/api?route=clear-alerts  200
+/api/*  /.netlify/functions/api  200
+/*  /index.html  200
